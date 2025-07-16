@@ -1,0 +1,9 @@
+# General audio and speech packages
+SpeechRecognition
+vosk
+sounddevice
+pyaudio
+pocketsphinx
+whisper
+torch
+numpy
