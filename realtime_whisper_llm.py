@@ -10,6 +10,8 @@ from queue import Queue
 from sys import platform
 import google.generativeai as genai
 from dotenv import load_dotenv
+import json
+import re
 
 load_dotenv()
 
@@ -21,19 +23,52 @@ RECORD_TIMEOUT = 2.0  # seconds
 PHRASE_TIMEOUT = 3.0  # seconds
 DEFAULT_MICROPHONE_NAME = "pulse" if 'linux' in platform else None
 LLM_INTERVAL = 15  # seconds
-LLM_OUTPUT_FILE = "llm_definitions.txt"
+LLM_OUTPUT_FILE = "llm_definitions.jsonl"
 # ==================================
 
 genai.configure(api_key=GEMINI_API_KEY)
 
 def get_gemini_definitions(text):
+    schema = '''
+    {
+      "type": "object",
+      "properties": {
+        "technical_terms": {
+          "type": "array",
+          "description": "A list of all technical terms mentioned in the transcript, along with definitions and contextual explanations.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "term": {"type": "string", "description": "The technical term or jargon identified in the transcript."},
+              "definition": {"type": "string", "description": "A clear and concise definition of the technical term."},
+              "contextual_explanation": {"type": "string", "description": "An explanation of how the term is used or meant within the current transcript, tailored for a non-technical audience."},
+              "example_quote": {"type": "string", "description": "A direct quote or sentence from the transcript where the term appears."}
+            },
+            "required": ["term", "definition", "contextual_explanation"]
+          }
+        }
+      },
+      "required": ["technical_terms"]
+    }
+    '''
     prompt = (
-        "Extract all technical terms from the following text and provide concise definitions for each. "
-        "If no technical terms are found, return an empty response.\n\nText:\n" + text
+        "Extract all technical terms from the following text and provide their definitions and context. "
+        "Return the result as a JSON object matching this schema (if no terms, use an empty list for 'technical_terms'):\n" + schema + "\nText:\n" + text
     )
     model = genai.GenerativeModel('gemini-2.0-flash')
     response = model.generate_content(prompt)
-    return response.text.strip() if hasattr(response, 'text') else str(response)
+    # Try to extract JSON from the response
+    match = re.search(r'\{[\s\S]*\}', response.text)
+    if match:
+        json_str = match.group(0)
+        try:
+            return json.loads(json_str)
+        except Exception as e:
+            print(f"[LLM JSON ERROR] {e}\nRaw output: {json_str}")
+            return None
+    else:
+        print(f"[LLM NO JSON FOUND] Raw output: {response.text}")
+        return None
 
 class TranscriptionBuffer:
     def __init__(self):
@@ -60,7 +95,11 @@ def llm_background_worker(buffer: TranscriptionBuffer):
             definitions = get_gemini_definitions(recent_text)
             if definitions:
                 with open(LLM_OUTPUT_FILE, 'a', encoding='utf-8') as f:
-                    f.write(f"\n[{datetime.utcnow().isoformat()}]\n{definitions}\n")
+                    f.write(json.dumps({
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "transcript": recent_text,
+                        "llm_output": definitions
+                    }) + '\n')
 
 def main():
     phrase_time = None
