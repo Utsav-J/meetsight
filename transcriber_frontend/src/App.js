@@ -3,15 +3,28 @@ import './App.css';
 import { FaMicrophone, FaGithub, FaSun, FaMoon, FaStop } from 'react-icons/fa';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const DEFINITIONS_CACHE_KEY = 'wf_teams_definitions_cache';
 
 function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcription, setTranscription] = useState('');
   const [loading, setLoading] = useState(false);
-  const [darkMode, setDarkMode] = useState(true); // Default to dark mode
+  const [darkMode, setDarkMode] = useState(false); // Default to dark mode
   const [hasTranscribed, setHasTranscribed] = useState(false);
   const [definitions, setDefinitions] = useState([]);
   const pollingRef = useRef(null);
+
+  // Load cached definitions on mount
+  useEffect(() => {
+    const cached = localStorage.getItem(DEFINITIONS_CACHE_KEY);
+    if (cached) {
+      try {
+        setDefinitions(JSON.parse(cached));
+      } catch {
+        setDefinitions([]);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     document.body.setAttribute('data-theme', darkMode ? 'dark' : 'light');
@@ -38,15 +51,18 @@ function App() {
           if (res2.ok) {
             const llmData = await res2.json();
             if (llmData.llm_output && llmData.llm_output.technical_terms) {
-              setDefinitions(llmData.llm_output.technical_terms);
-            } else {
-              setDefinitions([]);
+              // Merge new definitions with cached ones, avoiding duplicates by term
+              setDefinitions(prevDefs => {
+                const prevTerms = new Set(prevDefs.map(d => d.term));
+                const newDefs = llmData.llm_output.technical_terms.filter(d => d.term && !prevTerms.has(d.term));
+                const merged = [...prevDefs, ...newDefs];
+                localStorage.setItem(DEFINITIONS_CACHE_KEY, JSON.stringify(merged));
+                return merged;
+              });
             }
-          } else {
-            setDefinitions([]);
           }
         } catch (err) {
-          setDefinitions([]);
+          // Do nothing, keep previous definitions
         }
       }, 3000); // every 3 seconds
     } else {
@@ -57,8 +73,9 @@ function App() {
 
   const handleStart = async () => {
     setTranscription('');
-    setDefinitions([]);
     setLoading(true);
+    setHasTranscribed(false);
+    // Do not clear definitions, keep previous session's cache
     try {
       const res = await fetch(`${API_URL}/transcription/start`, { method: 'POST' });
       if (res.ok) {
@@ -89,33 +106,63 @@ function App() {
     }
   };
 
-  return (
-    <div className={`container glass ${darkMode ? 'dark' : 'light'}`}>
-      <div className="left-panel">
-        <div className="transcription-box glass">
-          <div className="transcription-content">
-            {!hasTranscribed && (
-              <div className="greeting">👋 Hi there! Start speaking to transcribe your voice note.</div>
-            )}
-            <div className="mic-visualizer">
-              {isRecording ? (
-                <div className="mic-anim">
-                  <FaMicrophone className="mic-icon recording" />
-                </div>
-              ) : (
-                <FaMicrophone className="mic-icon idle" />
-              )}
-            </div>
-            <div className="transcription-text fade-in">
-              {loading
-                ? <span>Transcribing...</span>
-                : <span>{transcription || 'Transcription of the audio that has been spoken'}</span>}
-            </div>
-          </div>
-        </div>
+  // Add clear handler
+  const handleClear = () => {
+    setDefinitions([]);
+    localStorage.removeItem(DEFINITIONS_CACHE_KEY);
+    setTranscription('');
+    setHasTranscribed(false);
+  };
+
+  // Card components for definitions and context
+  const DefinitionCard = ({ term, definition }) => (
+    <div className="card definition-card">
+      <div className="card-term">{term || <i>Unknown term</i>}</div>
+      <div className="card-definition">{definition || <i>No definition</i>}</div>
+    </div>
+  );
+
+  const ContextCard = ({ term, contextual_explanation, example_quote }) => (
+    <div className="card context-card">
+      <div className="card-term">{term || <i>Unknown term</i>}</div>
+      <div className="card-context">{contextual_explanation || <i>No context</i>}</div>
+      {example_quote && <div className="card-example"><b>Example:</b> "{example_quote}"</div>}
+    </div>
+  );
+
+  // Prepare content for the definitions and context boxes
+  const renderDefinitions = () => {
+    if (!definitions || definitions.length === 0) {
+      return <div>No technical terms found yet.</div>;
+    }
+    return (
+      <div className="card-list">
+        {definitions.map((def, idx) => (
+          <DefinitionCard key={idx} term={def.term} definition={def.definition} />
+        ))}
       </div>
-      <div className="right-panel">
-        <div className="right-panel-actions">
+    );
+  };
+
+  const renderContext = () => {
+    if (!definitions || definitions.length === 0) {
+      return <div>No contextual explanations yet.</div>;
+    }
+    return (
+      <div className="card-list">
+        {definitions.map((def, idx) => (
+          <ContextCard key={idx} term={def.term} contextual_explanation={def.contextual_explanation} example_quote={def.example_quote} />
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className={`app-root ${darkMode ? 'dark' : 'light'}`}> {/* New root class */}
+      {/* Header */}
+      <header className="app-header glass">
+        <div className="header-title">Meeting Insights</div>
+        <div className="header-actions">
           <button className="icon-btn" title="GitHub Repo">
             <FaGithub />
           </button>
@@ -123,30 +170,66 @@ function App() {
             {darkMode ? <FaSun /> : <FaMoon />}
           </button>
         </div>
-        <button className={`record-btn glass ${isRecording ? 'recording' : ''}`} onClick={isRecording ? handleStop : handleStart} disabled={loading}>
-          {isRecording ? <><FaStop /> Stop</> : <><FaMicrophone /> Record</>}
-        </button>
-        <div className="status-text">
-          {isRecording ? 'Recording...' : loading ? 'Processing...' : 'Ready'}
+      </header>
+      {/* Main three-column layout */}
+      <div className="main-columns">
+        {/* Left: Transcript */}
+        <div className="column transcript-column glass">
+          <div className="transcript-header">
+            <button
+              className={`record-btn${isRecording ? ' recording' : ''}`}
+              onClick={isRecording ? handleStop : handleStart}
+              disabled={loading}
+            >
+              {isRecording ? <><FaStop /> Stop</> : <><FaMicrophone /> Record</>}
+            </button>
+            <span className="status-text">
+              {isRecording ? 'Recording...' : loading ? 'Processing...' : 'Ready'}
+            </span>
+            <button
+              className="clear-session-btn"
+              onClick={handleClear}
+              title="Clear all definitions, explanations, and transcript"
+            >
+              Clear Session
+            </button>
+          </div>
+          <div className="transcription-box glass">
+            <div className="transcription-content">
+              {!hasTranscribed && (
+                <div className="greeting"></div>
+              )}
+              <div className="mic-visualizer">
+                {isRecording ? (
+                  <div className="mic-anim">
+                    <FaMicrophone className="mic-icon recording" />
+                  </div>
+                ) : (
+                  <FaMicrophone className="mic-icon idle" />
+                )}
+              </div>
+              <div className="transcription-text fade-in">
+                {loading
+                  ? <span>Transcribing...</span>
+                  : <span>{transcription || 'Hi there! Start speaking to transcribe your voice note.'}</span>}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="definitions-box glass">
-          <b>Technical Definitions:</b>
-          {definitions.length === 0 ? (
-            <div>No technical terms found yet.</div>
-          ) : (
-            <ul>
-              {definitions.map((def, idx) => (
-                <li key={idx} style={{marginBottom: '0.5em'}}>
-                  <b>{def.term}</b>: {def.definition}
-                  <br />
-                  <i>Context:</i> {def.contextual_explanation}
-                  {def.example_quote && <><br /><i>Example:</i> "{def.example_quote}"</>}
-                </li>
-              ))}
-            </ul>
-          )}
+        {/* Middle: Technical Definitions */}
+        <div className="column definitions-column glass">
+          <div className="column-title">Technical Definitions</div>
+          <div className="definitions-box card-scroll">
+            {renderDefinitions()}
+          </div>
         </div>
-        <div className="context-box glass">context placeholder</div>
+        {/* Right: Contextual Explanations & Examples */}
+        <div className="column context-column glass">
+          <div className="column-title">Contextual Explanations & Examples</div>
+          <div className="context-box card-scroll">
+            {renderContext()}
+          </div>
+        </div>
       </div>
     </div>
   );
