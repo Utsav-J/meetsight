@@ -1,69 +1,92 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { FaMicrophone, FaGithub, FaSun, FaMoon, FaStop } from 'react-icons/fa';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcription, setTranscription] = useState('');
   const [loading, setLoading] = useState(false);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
   const [darkMode, setDarkMode] = useState(true); // Default to dark mode
   const [hasTranscribed, setHasTranscribed] = useState(false);
+  const [definitions, setDefinitions] = useState([]);
+  const pollingRef = useRef(null);
 
   useEffect(() => {
     document.body.setAttribute('data-theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
+  // Poll for transcription and LLM output when recording
+  useEffect(() => {
+    if (isRecording) {
+      pollingRef.current = setInterval(async () => {
+        // Get live transcription
+        try {
+          const res = await fetch(`${API_URL}/transcription/live`);
+          if (res.ok) {
+            const data = await res.json();
+            setTranscription(data.transcription);
+            setHasTranscribed(!!data.transcription);
+          }
+        } catch (err) {
+          setTranscription('Error fetching transcription: ' + err.message);
+        }
+        // Get latest LLM output
+        try {
+          const res2 = await fetch(`${API_URL}/llm/latest`);
+          if (res2.ok) {
+            const llmData = await res2.json();
+            if (llmData.llm_output && llmData.llm_output.technical_terms) {
+              setDefinitions(llmData.llm_output.technical_terms);
+            } else {
+              setDefinitions([]);
+            }
+          } else {
+            setDefinitions([]);
+          }
+        } catch (err) {
+          setDefinitions([]);
+        }
+      }, 3000); // every 3 seconds
+    } else {
+      clearInterval(pollingRef.current);
+    }
+    return () => clearInterval(pollingRef.current);
+  }, [isRecording]);
+
   const handleStart = async () => {
     setTranscription('');
-    setLoading(false);
-    audioChunksRef.current = [];
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new window.MediaRecorder(stream, { mimeType: 'audio/webm' });
-      mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          audioChunksRef.current.push(e.data);
-        }
-      };
-      mediaRecorder.onstop = handleSendAudio;
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (err) {
-      alert('Could not access microphone: ' + err.message);
-    }
-  };
-
-  const handleStop = () => {
-    setIsRecording(false);
+    setDefinitions([]);
     setLoading(true);
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-    }
-  };
-
-  const handleSendAudio = async () => {
-    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-    const formData = new FormData();
-    formData.append('audio', audioBlob, 'recording.webm');
     try {
-      const response = await fetch('http://localhost:8000/api/transcribe/', {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await response.json();
-      if (data.transcription) {
-        setTranscription(data.transcription);
-        setHasTranscribed(true);
+      const res = await fetch(`${API_URL}/transcription/start`, { method: 'POST' });
+      if (res.ok) {
+        setIsRecording(true);
+        setLoading(false);
       } else {
-        setTranscription('Error: ' + (data.error || 'Unknown error'));
+        setLoading(false);
+        alert('Failed to start transcription.');
       }
     } catch (err) {
-      setTranscription('Error: ' + err.message);
+      setLoading(false);
+      alert('Could not start transcription: ' + err.message);
     }
-    setLoading(false);
+  };
+
+  const handleStop = async () => {
+    setIsRecording(false);
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/transcription/stop`, { method: 'POST' });
+      setLoading(false);
+      if (!res.ok) {
+        alert('Failed to stop transcription.');
+      }
+    } catch (err) {
+      setLoading(false);
+      alert('Could not stop transcription: ' + err.message);
+    }
   };
 
   return (
@@ -106,7 +129,23 @@ function App() {
         <div className="status-text">
           {isRecording ? 'Recording...' : loading ? 'Processing...' : 'Ready'}
         </div>
-        <div className="definitions-box glass">definitions placeholder</div>
+        <div className="definitions-box glass">
+          <b>Technical Definitions:</b>
+          {definitions.length === 0 ? (
+            <div>No technical terms found yet.</div>
+          ) : (
+            <ul>
+              {definitions.map((def, idx) => (
+                <li key={idx} style={{marginBottom: '0.5em'}}>
+                  <b>{def.term}</b>: {def.definition}
+                  <br />
+                  <i>Context:</i> {def.contextual_explanation}
+                  {def.example_quote && <><br /><i>Example:</i> "{def.example_quote}"</>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <div className="context-box glass">context placeholder</div>
       </div>
     </div>
