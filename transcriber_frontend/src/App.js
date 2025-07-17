@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { FaMicrophone, FaGithub, FaSun, FaMoon, FaStop } from 'react-icons/fa';
+import TranscriptionFeed from './TranscriptionFeed';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const DEFINITIONS_CACHE_KEY = 'wf_teams_definitions_cache';
@@ -208,10 +209,9 @@ function App() {
                   <FaMicrophone className="mic-icon idle" />
                 )}
               </div>
-              <div className="transcription-text fade-in">
-                {loading
-                  ? <span>Transcribing...</span>
-                  : <span>{transcription || 'Hi there! Start speaking to transcribe your voice note.'}</span>}
+              {/* Replace old transcription text with TranscriptionFeed */}
+              <div className="transcription-feed-wrapper">
+                <TranscriptionFeed />
               </div>
             </div>
           </div>
