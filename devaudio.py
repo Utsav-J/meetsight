@@ -10,9 +10,13 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 2      # Stereo Mix is usually stereo
 RATE = 44100      # Stereo Mix is usually 44100 Hz
 CHUNK = 1024
-BUFFER_SECONDS = 5  # How much audio to buffer for each transcription
+# BUFFERS = 5  # Remove static buffer
 
 TARGET_RATE = 16000
+
+# Silence detection parameters
+SILENCE_THRESHOLD = 500  # Adjust as needed (RMS value)
+SILENCE_DURATION = 0.7   # seconds of silence to trigger transcription
 
 # Load Whisper model
 model = whisper.load_model("tiny.en")  # or "small", "medium", "large"
@@ -34,15 +38,32 @@ import resampy
 
 audio_queue = queue.Queue()
 
+# Helper: check if audio is silent
+def is_silent(audio_np, threshold=SILENCE_THRESHOLD):
+    rms = np.sqrt(np.mean(np.square(audio_np)))
+    return rms < threshold
+
 def record_audio():
     buffer = []
-    frames_per_buffer = int(RATE * BUFFER_SECONDS / CHUNK)
+    silent_chunks = 0
+    silence_chunk_count = int(SILENCE_DURATION * RATE / CHUNK)
     while True:
-        for _ in range(frames_per_buffer):
-            data = stream.read(CHUNK, exception_on_overflow=False)
-            buffer.append(data)
-        audio_queue.put(b''.join(buffer))
-        buffer = []
+        data = stream.read(CHUNK, exception_on_overflow=False)
+        buffer.append(data)
+        # Convert to numpy for silence detection
+        audio_np = np.frombuffer(data, np.int16)
+        if CHANNELS == 2:
+            audio_np = audio_np.reshape(-1, 2)
+            audio_np = audio_np.mean(axis=1)
+        if is_silent(audio_np):
+            silent_chunks += 1
+        else:
+            silent_chunks = 0
+        # If we've had enough consecutive silent chunks, treat as end of utterance
+        if silent_chunks >= silence_chunk_count and len(buffer) > silence_chunk_count:
+            audio_queue.put(b''.join(buffer))
+            buffer = []
+            silent_chunks = 0
 
 def transcribe_audio():
     while True:
