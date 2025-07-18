@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect} from 'react';
 import './App.css';
 import {FaGithub, FaSun, FaMoon} from 'react-icons/fa';
 import DefinitionCard from './components/DefinitionCard';
@@ -16,9 +16,7 @@ function App() {
   const [darkMode, setDarkMode] = useState(false); // Default to dark mode
   const [hasTranscribed, setHasTranscribed] = useState(false);
   const [definitions, setDefinitions] = useState([]);
-  // Remove pollingRef and polling logic
-
-  // Load cached definitions on mount
+  
   useEffect(() => {
     const cached = localStorage.getItem(DEFINITIONS_CACHE_KEY);
     if (cached) {

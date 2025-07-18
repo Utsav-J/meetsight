@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaMicrophone, FaStop } from 'react-icons/fa';
 
-const CHUNK_SIZE = 15;
-const CHUNK_OVERLAP = 5;
 const CONTEXT_SIZE = 100;
+const DEBOUNCE_MS = 1000;
 
 const MeetingTranscript = ({
   isRecording,
@@ -14,39 +13,52 @@ const MeetingTranscript = ({
   statusText,
   onChunkReady // new prop
 }) => {
-  const [transcript, setTranscript] = useState([]); // array of lines
-  const [allWords, setAllWords] = useState([]); // array of all words
-  const [lastChunkStart, setLastChunkStart] = useState(0); // index of last chunk start
+  const [finalWords, setFinalWords] = useState([]); // all finalized words
+  const [lastSentIndex, setLastSentIndex] = useState(0); // up to which word has been sent
+  const [interimText, setInterimText] = useState(''); // current interim transcript
+  const [displayTranscript, setDisplayTranscript] = useState([]); // for UI
   const recognitionRef = useRef(null);
+  const debounceRef = useRef(null);
+  const lastResultIndexRef = useRef(0); // Track last processed result index
 
   // Start/stop browser speech recognition
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setTranscript(['[SpeechRecognition not supported in this browser]']);
+      setDisplayTranscript(['[SpeechRecognition not supported in this browser]']);
       return;
     }
     if (isRecording) {
-      setTranscript([]);
-      setAllWords([]);
-      setLastChunkStart(0);
+      setFinalWords([]);
+      setLastSentIndex(0);
+      setInterimText('');
+      setDisplayTranscript([]);
+      lastResultIndexRef.current = 0; // Reset on start
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'en-US';
       recognitionRef.current.onresult = (event) => {
-        let finalTranscript = [];
-        for (let i = 0; i < event.results.length; ++i) {
-          finalTranscript.push(event.results[i][0].transcript);
+        let newFinalWords = [];
+        let interim = '';
+        // Only process the latest result
+        const result = event.results[event.resultIndex];
+        if (result.isFinal) {
+          newFinalWords.push(result[0].transcript);
+        } else {
+          interim += result[0].transcript + ' ';
         }
-        setTranscript(finalTranscript);
-        // Flatten all transcript lines into a single string, then split into words
-        const joined = finalTranscript.join(' ');
-        const words = joined.trim().split(/\s+/).filter(Boolean);
-        setAllWords(words);
+        // Update finalized words
+        if (newFinalWords.length > 0) {
+          setFinalWords(prev => {
+            const updated = [...prev, ...newFinalWords.join(' ').split(/\s+/).filter(Boolean)];
+            return updated;
+          });
+        }
+        setInterimText(interim.trim());
       };
       recognitionRef.current.onerror = (e) => {
-        setTranscript(prev => [...prev, '[SpeechRecognition error: ' + e.error + ']']);
+        setDisplayTranscript(prev => [...prev, '[SpeechRecognition error: ' + e.error + ']']);
       };
       recognitionRef.current.start();
     } else {
@@ -54,6 +66,7 @@ const MeetingTranscript = ({
         recognitionRef.current.stop();
         recognitionRef.current = null;
       }
+      lastResultIndexRef.current = 0; // Reset on stop
     }
     // Cleanup on unmount
     return () => {
@@ -61,35 +74,70 @@ const MeetingTranscript = ({
         recognitionRef.current.stop();
         recognitionRef.current = null;
       }
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      lastResultIndexRef.current = 0; // Reset on unmount
     };
   }, [isRecording]);
 
-  // Detect new chunk and notify parent
+  // Send any unsent words as a chunk
+  const sendUnsentChunk = () => {
+    if (lastSentIndex < finalWords.length) {
+      const chunkWords = finalWords.slice(lastSentIndex);
+      if (chunkWords.length > 0) {
+        const chunk = chunkWords.join(' ');
+        const contextStart = Math.max(0, lastSentIndex - CONTEXT_SIZE);
+        const context = finalWords.slice(contextStart, finalWords.length).join(' ');
+        if (onChunkReady) {
+          onChunkReady(chunk, context);
+        }
+        setLastSentIndex(finalWords.length);
+      }
+    }
+  };
+
+  // On stop/clear, send any unsent words
+  useEffect(() => {
+    if (!isRecording && finalWords.length > 0 && lastSentIndex < finalWords.length) {
+      sendUnsentChunk();
+    }
+    // eslint-disable-next-line
+  }, [isRecording]);
+
+  // Add a debounced useEffect for finalWords
   useEffect(() => {
     if (!isRecording) return;
-    if (allWords.length < CHUNK_SIZE) return;
-    // Calculate the start index for the next chunk
-    let nextChunkStart = lastChunkStart;
-    while (nextChunkStart + CHUNK_SIZE <= allWords.length) {
-      // Prepare chunk and context
-      const chunk = allWords.slice(nextChunkStart, nextChunkStart + CHUNK_SIZE).join(' ');
-      const contextStart = Math.max(0, nextChunkStart + CHUNK_SIZE - CONTEXT_SIZE);
-      const context = allWords.slice(contextStart, nextChunkStart + CHUNK_SIZE).join(' ');
-      if (onChunkReady) {
-        onChunkReady(chunk, context);
-      }
-      nextChunkStart += (CHUNK_SIZE - CHUNK_OVERLAP);
-    }
-    setLastChunkStart(nextChunkStart);
-  }, [allWords, isRecording]);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      sendUnsentChunk();
+    }, DEBOUNCE_MS);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [finalWords, isRecording]);
 
-  // Clear transcript when session is cleared
+  // Update display transcript for UI (final + interim)
   useEffect(() => {
-    if (!isRecording && transcript.length > 0 && !loading) {
-      setTranscript([]);
-      setAllWords([]);
-      setLastChunkStart(0);
+    const display = [];
+    if (finalWords.length > 0) {
+      display.push(finalWords.join(' '));
     }
+    if (interimText) {
+      display.push(<span key="interim" style={{ color: '#aaa', fontStyle: 'italic' }}>{interimText}</span>);
+    }
+    setDisplayTranscript(display);
+  }, [finalWords, interimText]);
+
+  // Clear all state on clear
+  useEffect(() => {
+    if (!isRecording && displayTranscript.length > 0 && !loading) {
+      setFinalWords([]);
+      setLastSentIndex(0);
+      setInterimText('');
+      setDisplayTranscript([]);
+    }
+    // eslint-disable-next-line
   }, [loading, isRecording]);
 
   return (
@@ -97,8 +145,8 @@ const MeetingTranscript = ({
       <div className="meeting-transcript-title">Meeting Transcript</div>
       <div className="meeting-transcript-content">
         <div className="transcription-content-static">
-          {transcript.length > 0 ? (
-            <div>{transcript.map((line, idx) => <div key={idx}>{line}</div>)}</div>
+          {displayTranscript.length > 0 ? (
+            <div>{displayTranscript.map((line, idx) => <div key={idx}>{line}</div>)}</div>
           ) : (
             <div className="greeting">Welcome! Click 'Record Meeting' to start transcribing.</div>
           )}
