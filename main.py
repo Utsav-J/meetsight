@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse
 import uvicorn
 
 # Parameters
-DEVICE_INDEX = 1  # Set to your Stereo Mix device index
+DEVICE_INDEX = 0  # Set to your Stereo Mix device index
 FORMAT = pyaudio.paInt16
 CHANNELS = 2      # Stereo Mix is usually stereo
 RATE = 44100      # Stereo Mix is usually 44100 Hz

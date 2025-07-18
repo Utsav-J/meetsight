@@ -13,7 +13,6 @@ export default function TranscriptionFeed() {
     };
 
     ws.onopen = () => {
-      // Keep the connection alive
       setInterval(() => ws.send("ping"), 10000);
     };
 

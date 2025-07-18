@@ -6,7 +6,7 @@ import re
 from datetime import datetime, timedelta
 from queue import Queue
 from sys import platform
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import speech_recognition as sr
@@ -15,6 +15,7 @@ import torch
 import google.generativeai as genai
 from dotenv import load_dotenv
 import numpy as np
+from typing import List, Optional
 
 # Load environment variables
 load_dotenv()
@@ -207,6 +208,19 @@ class LLMWorker(threading.Thread):
 class StatusResponse(BaseModel):
     running: bool
 
+class ExtractTermsRequest(BaseModel):
+    chunk: str
+    context: str
+
+class TechnicalTerm(BaseModel):
+    term: str
+    definition: str
+    contextual_explanation: str
+    example_quote: Optional[str] = None
+
+class ExtractTermsResponse(BaseModel):
+    technical_terms: List[TechnicalTerm]
+
 @app.post("/transcription/start", response_model=StatusResponse)
 def start_transcription():
     global transcription_thread, llm_thread
@@ -239,3 +253,42 @@ def get_latest_llm():
     if output is None:
         raise HTTPException(status_code=404, detail="No LLM output yet.")
     return output 
+
+@app.post("/llm/extract_terms", response_model=ExtractTermsResponse)
+def extract_terms(request: ExtractTermsRequest):
+    """
+    Extract technical terms from the chunk, using context for disambiguation only.
+    Only extract terms from the chunk, not the context.
+    """
+    chunk = request.chunk
+    context = request.context
+    prompt = (
+        "Extract all technical terms from the following CHUNK and provide their definitions and context. "
+        "Use the CONTEXT only to help disambiguate the meaning of terms, but only extract terms that appear in the CHUNK. "
+        "Return the result as a JSON object matching this schema (if no terms, use an empty list for 'technical_terms'):\n" + SCHEMA +
+        f"\nCHUNK:\n{chunk}\n\nCONTEXT:\n{context}"
+    )
+    model = genai.GenerativeModel('gemini-2.0-flash')
+    response = model.generate_content(prompt)
+    match = re.search(r'\{[\s\S]*\}', response.text)
+    if match:
+        json_str = match.group(0)
+        try:
+            data = json.loads(json_str)
+            terms = data.get('technical_terms', [])
+            # Ensure all required fields are present
+            result_terms = []
+            for t in terms:
+                result_terms.append(TechnicalTerm(
+                    term=t.get('term', ''),
+                    definition=t.get('definition', ''),
+                    contextual_explanation=t.get('contextual_explanation', ''),
+                    example_quote=t.get('example_quote')
+                ))
+            return ExtractTermsResponse(technical_terms=result_terms)
+        except Exception as e:
+            print(f"[LLM JSON ERROR] {e}\nRaw output: {json_str}")
+            raise HTTPException(status_code=500, detail="LLM output parsing error.")
+    else:
+        print(f"[LLM NO JSON FOUND] Raw output: {response.text}")
+        return ExtractTermsResponse(technical_terms=[]) 
