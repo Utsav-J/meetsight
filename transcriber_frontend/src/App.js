@@ -2,11 +2,10 @@ import React, { useState, useEffect} from 'react';
 import layoutStyles from './components/common/ColumnLayout/ColumnLayout.module.css';
 import headerStyles from './components/common/Header/Header.module.css';
 import {FaGithub, FaSun, FaMoon, FaInfoCircle} from 'react-icons/fa';
-import DefinitionCard from './components/cards/DefinitionCard/DefinitionCard';
-import ContextCard from './components/cards/ContextCard/ContextCard';
 import ActionItemCard from './components/cards/ActionItemCard/ActionItemCard';
 import MeetingTranscript from './components/transcript/MeetingTranscript/MeetingTranscript';
 import InfoModal from './components/modals/InfoModal/InfoModal';
+import CombinedDefinitionCard from './components/cards/CombinedDefinitionCard/CombinedDefinitionCard';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const DEFINITIONS_CACHE_KEY = 'wf_teams_definitions_cache';
@@ -89,8 +88,8 @@ function App() {
     }
   };
 
-  // Prepare content for the definitions and context boxes
-  const renderDefinitions = () => {
+  // Prepare content for the combined card box
+  const renderCombinedCards = () => {
     if (loading) {
       return <div className="spinner">Loading technical terms...</div>;
     }
@@ -100,23 +99,14 @@ function App() {
     return (
       <div className="card-list">
         {definitions.map((def, idx) => (
-          <DefinitionCard key={idx} term={def.term} definition={def.definition} difficulty={def.difficulty} />
-        ))}
-      </div>
-    );
-  };
-
-  const renderContext = () => {
-    if (loading) {
-      return <div className="spinner">Loading contextual explanations...</div>;
-    }
-    if (!definitions || definitions.length === 0) {
-      return <div>No contextual explanations yet.</div>;
-    }
-    return (
-      <div className="card-list">
-        {definitions.map((def, idx) => (
-          <ContextCard key={idx} term={def.term} contextual_explanation={def.contextual_explanation} example_quote={def.example_quote} difficulty={def.difficulty} />
+          <CombinedDefinitionCard
+            key={idx}
+            term={def.term}
+            definition={def.definition}
+            contextual_explanation={def.contextual_explanation}
+            example_quote={def.example_quote}
+            difficulty={def.difficulty}
+          />
         ))}
       </div>
     );
@@ -141,20 +131,13 @@ function App() {
       </header>
       {/* Info Modal */}
       <InfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />
-      {/* Main three-column layout */}
+      {/* Main single-column layout for combined cards */}
       <div className={layoutStyles['main-columns'] + ' ' + layoutStyles['redesigned-layout']}>
-        {/* Left: Technical Definitions */}
+        {/* Single: Combined Technical Card List */}
         <div className={layoutStyles['column'] + ' definitions-column glass'}>
-          <div className={layoutStyles['column-title']}>Technical Definitions</div>
+          <div className={layoutStyles['column-title']}>Technical Terms & Context</div>
           <div className={layoutStyles['definitions-box'] + ' card-scroll'}>
-            {renderDefinitions()}
-          </div>
-        </div>
-        {/* Middle: Contextual Explanations & Examples */}
-        <div className={layoutStyles['column'] + ' context-column glass'}>
-          <div className={layoutStyles['column-title']}>Contextual Explanations & Examples</div>
-          <div className={layoutStyles['context-box'] + ' card-scroll'}>
-            {renderContext()}
+            {renderCombinedCards()}
           </div>
         </div>
         {/* Right: Action Items */}

@@ -1,24 +1,19 @@
-.main-columns {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr 1.1fr;
-  gap: var(--column-gap);
-  padding: 40px 32px 32px 32px;
-  flex: 1;
-  min-height: 0;
-}
+.main-columns,
 .main-columns.redesigned-layout {
   display: grid;
-  grid-template-columns: 1.1fr 1fr 1.1fr;
+  grid-template-columns: 2fr 1fr;
   gap: var(--column-gap);
   padding: 40px 32px 0 32px;
   flex: 1;
   min-height: 0;
 }
+
 .column {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
+
 .definitions-box,
 .context-box {
   background: var(--glass-bg);
@@ -30,6 +25,28 @@
   max-height: 480px;
   overflow-y: auto;
 }
+.definitions-box {
+  max-width: none;
+  min-width: 0;
+}
+
+.card-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.2rem;
+}
+
+@media (max-width: 800px) {
+  .card-list {
+    grid-template-columns: 1fr;
+  }
+  .main-columns,
+  .main-columns.redesigned-layout {
+    grid-template-columns: 1fr;
+    padding: 24px 8px 0 8px;
+  }
+}
+
 .column-title {
   font-size: 1.18rem;
   font-weight: 600;
@@ -37,6 +54,7 @@
   color: var(--primary);
   letter-spacing: 0.01em;
 }
+
 .card-scroll::-webkit-scrollbar,
 .definitions-box::-webkit-scrollbar,
 .context-box::-webkit-scrollbar {
