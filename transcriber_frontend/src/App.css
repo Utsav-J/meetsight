@@ -5,6 +5,7 @@
   --accent: #c88f33;
   --text: #222;
   --text-light: #fff;
+  --header-title-color: #ff5b5b;
   --card-radius: 18px;
   --header-height: 64px;
   --column-gap: 32px;
@@ -19,8 +20,9 @@
   --glass-border: rgba(255, 255, 255, 0.08);
   --primary: #ff5b5b;
   --accent: #ffd580;
-  --text: #f3f3f3;
-  --text-light: #fff;
+  --text: #353434;
+  --text-light: #ffffff;
+  --header-title-color: #ff5b5b;
   --scrollbar-thumb: #444;
   --scrollbar-bg: #222;
   background: #181a20;

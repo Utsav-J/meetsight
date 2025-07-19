@@ -98,16 +98,18 @@ function App() {
     }
     return (
       <div className="card-list">
-        {definitions.map((def, idx) => (
-          <CombinedDefinitionCard
-            key={idx}
-            term={def.term}
-            definition={def.definition}
-            contextual_explanation={def.contextual_explanation}
-            example_quote={def.example_quote}
-            difficulty={def.difficulty}
-          />
-        ))}
+        {[...definitions]
+          .sort((a, b) => (b.difficulty || 0) - (a.difficulty || 0))
+          .map((def, idx) => (
+            <CombinedDefinitionCard
+              key={idx}
+              term={def.term}
+              definition={def.definition}
+              contextual_explanation={def.contextual_explanation}
+              example_quote={def.example_quote}
+              difficulty={def.difficulty}
+            />
+          ))}
       </div>
     );
   };

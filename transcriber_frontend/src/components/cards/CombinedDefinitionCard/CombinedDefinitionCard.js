@@ -14,7 +14,9 @@ const CombinedDefinitionCard = ({ term, definition, contextual_explanation, exam
     className={styles.card + ' ' + styles['combined-card']}
     style={{ backgroundColor: difficultyColor[difficulty] || '#fff' }}
   >
-    <div className={styles['card-term']}>{term || <i>Unknown term</i>}</div>
+    <div className={styles['card-term']}>
+      {term ? term.charAt(0).toUpperCase() + term.slice(1) : <i>Unknown term</i>}
+    </div>
     <div className={styles['card-definition']}>{definition || <i>No definition</i>}</div>
     <div className={styles['card-context']}>{contextual_explanation || <i>No context</i>}</div>
     {example_quote && <div className={styles['card-example']}><b>Example:</b> "{example_quote}"</div>}

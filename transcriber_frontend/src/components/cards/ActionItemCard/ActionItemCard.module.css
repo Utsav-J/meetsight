@@ -2,7 +2,7 @@
   background: rgb(255, 255, 255);
   border-radius: 14px;
   padding: 16px 14px;
-  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px 0 rgba(49, 49, 49, 0.04);
   border: 1px solid var(--glass-border);
   backdrop-filter: blur(6px);
   color: var(--text);
@@ -13,5 +13,18 @@
 .action-item-card:hover {
   background: var(--primary);
   color: var(--text-light);
+  box-shadow: 0 4px 16px 0 rgba(255,91,91,0.10);
+}
+
+.app-root.dark .action-item-card,
+[data-theme='dark'] .action-item-card {
+  background: #37393a;
+  color: #fff;
+}
+
+.app-root.dark .action-item-card:hover,
+[data-theme='dark'] .action-item-card:hover {
+  background: var(--primary);
+  color: #fff;
   box-shadow: 0 4px 16px 0 rgba(255,91,91,0.10);
 } 
