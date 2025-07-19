@@ -1,0 +1,97 @@
+.meeting-transcript-section {
+  width: 100%;
+  background: var(--glass-bg);
+  border-top: 2px solid var(--glass-border);
+  box-shadow: 0 -2px 16px 0 rgba(0,0,0,0.04);
+  padding: 32px 32px 24px 32px;
+  margin-top: 32px;
+  border-radius: 0 0 var(--card-radius) var(--card-radius);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.meeting-transcript-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+.meeting-transcript-content {
+  background: none;
+  border: none;
+  min-height: 80px;
+  font-size: 1.08rem;
+  color: var(--text);
+  margin-bottom: 18px;
+  padding: 0 2px;
+}
+.meeting-transcript-controls {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.transcription-content-static {
+  font-size: 1.08rem;
+  color: var(--text);
+  background: none;
+  border: none;
+  min-height: 48px;
+  word-break: break-word;
+  padding: 0;
+}
+.greeting {
+  font-size: 1.1rem;
+  color: var(--primary);
+  margin-bottom: 10px;
+  text-align: center;
+}
+.record-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--primary);
+  color: var(--text-light);
+  border: none;
+  border-radius: 999px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 10px 22px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.08);
+  transition: background 0.2s, color 0.2s;
+}
+.record-btn.recording {
+  background: #e74c3c;
+}
+.record-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.status-text {
+  font-size: 1.08rem;
+  font-weight: 500;
+  color: var(--primary);
+  margin: 0 18px 0 0;
+  min-width: 80px;
+  text-align: left;
+  letter-spacing: 0.01em;
+}
+.clear-session-btn {
+  margin-left: 0;
+  background: transparent;
+  border: 2px solid var(--primary);
+  border-radius: 999px;
+  padding: 10px 22px;
+  color: var(--primary);
+  font-size: 1.05rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border 0.2s;
+  outline: none;
+}
+.clear-session-btn:hover {
+  background: var(--primary);
+  color: var(--text-light);
+  border-color: var(--primary);
+} 

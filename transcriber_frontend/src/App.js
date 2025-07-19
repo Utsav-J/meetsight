@@ -1,10 +1,12 @@
 import React, { useState, useEffect} from 'react';
-import './App.css';
-import {FaGithub, FaSun, FaMoon} from 'react-icons/fa';
+import layoutStyles from './components/ColumnLayout.module.css';
+import headerStyles from './components/Header.module.css';
+import {FaGithub, FaSun, FaMoon, FaInfoCircle} from 'react-icons/fa';
 import DefinitionCard from './components/DefinitionCard';
 import ContextCard from './components/ContextCard';
 import ActionItemCard from './components/ActionItemCard';
 import MeetingTranscript from './components/MeetingTranscript';
+import InfoModal from './components/InfoModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const DEFINITIONS_CACHE_KEY = 'wf_teams_definitions_cache';
@@ -16,6 +18,7 @@ function App() {
   const [darkMode, setDarkMode] = useState(false); // Default to dark mode
   const [hasTranscribed, setHasTranscribed] = useState(false);
   const [definitions, setDefinitions] = useState([]);
+  const [infoOpen, setInfoOpen] = useState(false);
   
   useEffect(() => {
     const cached = localStorage.getItem(DEFINITIONS_CACHE_KEY);
@@ -44,11 +47,9 @@ function App() {
   const handleStop = async () => {
     setIsRecording(false);
     setLoading(false);
-    // Optionally, you can still call the backend to stop any background process
     try {
       await fetch(`${API_URL}/transcription/stop`, { method: 'POST' });
     } catch (err) {
-      // Ignore errors
     }
   };
 
@@ -99,7 +100,7 @@ function App() {
     return (
       <div className="card-list">
         {definitions.map((def, idx) => (
-          <DefinitionCard key={idx} term={def.term} definition={def.definition} />
+          <DefinitionCard key={idx} term={def.term} definition={def.definition} difficulty={def.difficulty} />
         ))}
       </div>
     );
@@ -115,46 +116,51 @@ function App() {
     return (
       <div className="card-list">
         {definitions.map((def, idx) => (
-          <ContextCard key={idx} term={def.term} contextual_explanation={def.contextual_explanation} example_quote={def.example_quote} />
+          <ContextCard key={idx} term={def.term} contextual_explanation={def.contextual_explanation} example_quote={def.example_quote} difficulty={def.difficulty} />
         ))}
       </div>
     );
   };
 
   return (
-    <div className={`app-root ${darkMode ? 'dark' : 'light'}`}> {/* New root class */}
+    <div className={`app-root ${darkMode ? 'dark' : 'light'}`}>
       {/* Header */}
-      <header className="app-header glass">
-        <div className="header-title">Meeting Insights</div>
-        <div className="header-actions">
-          <button className="icon-btn" title="GitHub Repo">
+      <header className={headerStyles['app-header'] + ' glass'}>
+        <div className={headerStyles['header-title']}>Meeting Insights</div>
+        <div className={headerStyles['header-actions']}>
+          <button className={headerStyles['icon-btn']} title="Info" onClick={() => setInfoOpen(true)}>
+            <FaInfoCircle />
+          </button>
+          <button className={headerStyles['icon-btn']} title="GitHub Repo">
             <FaGithub />
           </button>
-          <button className="theme-toggle-pill" onClick={() => setDarkMode(dm => !dm)}>
+          <button className={headerStyles['theme-toggle-pill']} onClick={() => setDarkMode(dm => !dm)}>
             {darkMode ? <FaSun /> : <FaMoon />}
           </button>
         </div>
       </header>
+      {/* Info Modal */}
+      <InfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />
       {/* Main three-column layout */}
-      <div className="main-columns redesigned-layout">
+      <div className={layoutStyles['main-columns'] + ' ' + layoutStyles['redesigned-layout']}>
         {/* Left: Technical Definitions */}
-        <div className="column definitions-column glass">
-          <div className="column-title">Technical Definitions</div>
-          <div className="definitions-box card-scroll">
+        <div className={layoutStyles['column'] + ' definitions-column glass'}>
+          <div className={layoutStyles['column-title']}>Technical Definitions</div>
+          <div className={layoutStyles['definitions-box'] + ' card-scroll'}>
             {renderDefinitions()}
           </div>
         </div>
         {/* Middle: Contextual Explanations & Examples */}
-        <div className="column context-column glass">
-          <div className="column-title">Contextual Explanations & Examples</div>
-          <div className="context-box card-scroll">
+        <div className={layoutStyles['column'] + ' context-column glass'}>
+          <div className={layoutStyles['column-title']}>Contextual Explanations & Examples</div>
+          <div className={layoutStyles['context-box'] + ' card-scroll'}>
             {renderContext()}
           </div>
         </div>
         {/* Right: Action Items */}
-        <div className="column action-items-column glass">
-          <div className="column-title">Action Items</div>
-          <div className="action-items-box card-scroll">
+        <div className={layoutStyles['column'] + ' action-items-column glass'}>
+          <div className={layoutStyles['column-title']}>Action Items</div>
+          <div className={layoutStyles['action-items-box'] + ' card-scroll'}>
             <ActionItemCard title="Finalize API Gateway Configuration" description="Ensure the API gateway is robust and scalable for the new microservices." />
             <ActionItemCard title="Review Data Lake Migration Performance" description="Check current ETL process efficiency and overall data lake performance." />
             <ActionItemCard title="Train Machine Learning Models" description="Continue training neural network models for fraud detection." />

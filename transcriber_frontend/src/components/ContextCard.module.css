@@ -1,0 +1,30 @@
+.card {
+  background: rgb(255, 255, 255);
+  border-radius: 14px;
+  padding: 16px 14px;
+  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(6px);
+  color: var(--text);
+  transition: background 0.2s, color 0.2s;
+}
+.card-term {
+  font-weight: 700;
+  font-size: 1.08rem;
+  margin-bottom: 4px;
+  color: var(--primary);
+}
+.card-context {
+  font-size: 1.01rem;
+  margin-bottom: 4px;
+}
+.card-example {
+  font-size: 0.97rem;
+  color: var(--accent);
+  margin-top: 4px;
+}
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+} 

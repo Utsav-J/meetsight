@@ -1,0 +1,17 @@
+.action-item-card {
+  background: rgb(255, 255, 255);
+  border-radius: 14px;
+  padding: 16px 14px;
+  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(6px);
+  color: var(--text);
+  margin-bottom: 10px;
+  transition: background 0.2s, color 0.2s;
+  cursor: pointer;
+}
+.action-item-card:hover {
+  background: var(--primary);
+  color: var(--text-light);
+  box-shadow: 0 4px 16px 0 rgba(255,91,91,0.10);
+} 

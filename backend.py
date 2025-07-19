@@ -82,16 +82,17 @@ SCHEMA = '''
   "properties": {
     "technical_terms": {
       "type": "array",
-      "description": "A list of all technical terms mentioned in the transcript, along with definitions and contextual explanations.",
+      "description": "A list of all technical terms (not basic/common ones) mentioned in the transcript, along with definitions, contextual explanations, and difficulty rating (1-5, 5=most difficult). Only include terms that would be unfamiliar to a typical tech student.",
       "items": {
         "type": "object",
         "properties": {
-          "term": {"type": "string", "description": "The technical term or jargon identified in the transcript."},
+          "term": {"type": "string", "description": "The niche technical term or jargon identified in the transcript."},
           "definition": {"type": "string", "description": "A clear and concise definition of the technical term."},
-          "contextual_explanation": {"type": "string", "description": "An explanation of how the term is used or meant within the current transcript, tailored for a non-technical audience."},
-          "example_quote": {"type": "string", "description": "A direct quote or sentence from the transcript where the term appears."}
+          "contextual_explanation": {"type": "string", "description": "An explanation of how the term is used or meant within the current transcript, tailored for a tech student with basic knowledge."},
+          "example_quote": {"type": "string", "description": "A direct quote or sentence from the transcript where the term appears."},
+          "difficulty": {"type": "integer", "description": "Difficulty of the term for a typical tech student (1=easy, 4=very difficult)", "minimum": 1, "maximum": 4}
         },
-        "required": ["term", "definition", "contextual_explanation"]
+        "required": ["term", "definition", "contextual_explanation", "difficulty"]
       }
     }
   },
@@ -101,8 +102,12 @@ SCHEMA = '''
 
 def get_gemini_definitions(text):
     prompt = (
-        "Extract all technical terms from the following text and provide their definitions and context. "
-        "Return the result as a JSON object matching this schema (if no terms, use an empty list for 'technical_terms'):\n" + SCHEMA + "\nText:\n" + text
+        "Extract all technical terms (not basic/common ones) from the following text and provide their definitions, context, and a difficulty rating (1-4, 4=most difficult).",
+        "Only include terms that would be unfamiliar to a typical employee at a bank with basic knowledge.",
+        "Return the result as a JSON object matching this schema (if no terms, use an empty list for 'technical_terms'):\n"
+        + SCHEMA
+        + "\nText:\n"
+        + text
     )
     model = genai.GenerativeModel('gemini-2.0-flash')
     response = model.generate_content(prompt)
@@ -217,6 +222,7 @@ class TechnicalTerm(BaseModel):
     definition: str
     contextual_explanation: str
     example_quote: Optional[str] = None
+    difficulty: int
 
 class ExtractTermsResponse(BaseModel):
     technical_terms: List[TechnicalTerm]
@@ -257,16 +263,16 @@ def get_latest_llm():
 @app.post("/llm/extract_terms", response_model=ExtractTermsResponse)
 def extract_terms(request: ExtractTermsRequest):
     """
-    Extract technical terms from the chunk, using context for disambiguation only.
-    Only extract terms from the chunk, not the context.
+    Extract niche technical terms from the chunk, using context for disambiguation only. Only extract terms from the chunk, not the context. Only include terms that would be unfamiliar to a typical tech student with basic knowledge. Add a difficulty rating (1-5, 5=most difficult) for each term.
     """
     chunk = request.chunk
     context = request.context
     prompt = (
-        "Extract all technical terms from the following CHUNK and provide their definitions and context. "
-        "Use the CONTEXT only to help disambiguate the meaning of terms, but only extract terms that appear in the CHUNK. "
+        "Extract all niche technical terms (not basic/common ones) from the following CHUNK and provide their definitions, context, and a difficulty rating (1-4, 4=most difficult).",
+        "Use the CONTEXT only to help disambiguate the meaning of terms, but only extract terms that appear in the CHUNK. Only include terms that would be unfamiliar to a typical bank employee with basic knowledge.",
         "Return the result as a JSON object matching this schema (if no terms, use an empty list for 'technical_terms'):\n" + SCHEMA +
-        f"\nCHUNK:\n{chunk}\n\nCONTEXT:\n{context}"
+        f"\nCHUNK:\n{chunk}\n",
+        f"\nCONTEXT:\n{context}"
     )
     model = genai.GenerativeModel('gemini-2.0-flash')
     response = model.generate_content(prompt)
@@ -283,7 +289,8 @@ def extract_terms(request: ExtractTermsRequest):
                     term=t.get('term', ''),
                     definition=t.get('definition', ''),
                     contextual_explanation=t.get('contextual_explanation', ''),
-                    example_quote=t.get('example_quote')
+                    example_quote=t.get('example_quote'),
+                    difficulty=t.get('difficulty', 1)
                 ))
             return ExtractTermsResponse(technical_terms=result_terms)
         except Exception as e:

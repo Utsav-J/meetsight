@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaMicrophone, FaStop } from 'react-icons/fa';
+import styles from './MeetingTranscript.module.css';
 
 const CONTEXT_SIZE = 100;
 const DEBOUNCE_MS = 1000;
@@ -141,28 +142,28 @@ const MeetingTranscript = ({
   }, [loading, isRecording]);
 
   return (
-    <div className="meeting-transcript-section glass">
-      <div className="meeting-transcript-title">Meeting Transcript</div>
-      <div className="meeting-transcript-content">
-        <div className="transcription-content-static">
+    <div className={styles['meeting-transcript-section'] + ' glass'}>
+      <div className={styles['meeting-transcript-title']}>Meeting Transcript</div>
+      <div className={styles['meeting-transcript-content']}>
+        <div className={styles['transcription-content-static']}>
           {displayTranscript.length > 0 ? (
             <div>{displayTranscript.map((line, idx) => <div key={idx}>{line}</div>)}</div>
           ) : (
-            <div className="greeting">Welcome! Click 'Record Meeting' to start transcribing.</div>
+            <div className={styles.greeting}>Welcome! Click 'Record Meeting' to start transcribing.</div>
           )}
         </div>
       </div>
-      <div className="meeting-transcript-controls">
+      <div className={styles['meeting-transcript-controls']}>
         <button
-          className={`record-btn${isRecording ? ' recording' : ''}`}
+          className={styles['record-btn'] + (isRecording ? ' ' + styles['recording'] : '')}
           onClick={isRecording ? handleStop : handleStart}
           disabled={loading}
         >
           {isRecording ? <><FaStop /> Stop</> : <><FaMicrophone /> Record Meeting</>}
         </button>
-        <span className="status-text">{statusText}</span>
+        <span className={styles['status-text']}>{statusText}</span>
         <button
-          className="clear-session-btn"
+          className={styles['clear-session-btn']}
           onClick={handleClear}
           title="Clear all definitions, explanations, and transcript"
         >
