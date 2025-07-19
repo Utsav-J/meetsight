@@ -1,12 +1,12 @@
 import React, { useState, useEffect} from 'react';
-import layoutStyles from './components/ColumnLayout.module.css';
-import headerStyles from './components/Header.module.css';
+import layoutStyles from './components/common/ColumnLayout/ColumnLayout.module.css';
+import headerStyles from './components/common/Header/Header.module.css';
 import {FaGithub, FaSun, FaMoon, FaInfoCircle} from 'react-icons/fa';
-import DefinitionCard from './components/DefinitionCard';
-import ContextCard from './components/ContextCard';
-import ActionItemCard from './components/ActionItemCard';
-import MeetingTranscript from './components/MeetingTranscript';
-import InfoModal from './components/InfoModal';
+import DefinitionCard from './components/cards/DefinitionCard/DefinitionCard';
+import ContextCard from './components/cards/ContextCard/ContextCard';
+import ActionItemCard from './components/cards/ActionItemCard/ActionItemCard';
+import MeetingTranscript from './components/transcript/MeetingTranscript/MeetingTranscript';
+import InfoModal from './components/modals/InfoModal/InfoModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const DEFINITIONS_CACHE_KEY = 'wf_teams_definitions_cache';
